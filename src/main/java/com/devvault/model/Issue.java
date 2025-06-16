@@ -2,6 +2,9 @@ package com.devvault.model;
 
 import jakarta.persistence.*;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "issues")
 public class Issue {
@@ -22,6 +25,13 @@ public class Issue {
     // Constructors
     public Issue() {
     }
+
+    @Column(name = "reward_points")
+    private Integer rewardPoints;
+
+    @Column(name = "due_date")
+    private LocalDate dueDate;
+
 
     public Issue(String title, String description, String difficulty, String status, User assignedTo) {
         this.title = title;
@@ -75,4 +85,22 @@ public class Issue {
     public void setAssignedTo(User assignedTo) {
         this.assignedTo = assignedTo;
     }
+
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
 }
