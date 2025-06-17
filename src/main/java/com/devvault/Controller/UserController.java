@@ -3,6 +3,8 @@ package com.devvault.Controller;
 import com.devvault.model.User;
 import com.devvault.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,41 +18,49 @@ public class UserController {
 
     // Create a new user
     @PostMapping
-    public User createUser(@RequestBody User user) {
-        return userRepository.save(user);
+    public ResponseEntity<User> createUser(@RequestBody User user) {
+        User savedUser = userRepository.save(user);
+        return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
     }
 
     // Get all users
     @GetMapping
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public ResponseEntity<List<User>> getAllUsers() {
+        return ResponseEntity.ok(userRepository.findAll());
     }
 
     // Get user by ID
     @GetMapping("/{id}")
-    public User getUser(@PathVariable Long id) {
-        return userRepository.findById(id).orElse(null);
+    public ResponseEntity<User> getUser(@PathVariable Long id) {
+        return userRepository.findById(id)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(null));
     }
 
-    // Update user by ID
+    // Update user by ID (Upsert style)
     @PutMapping("/{id}")
-    public User updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
-        return userRepository.findById(id).map(user -> {
-            user.setUsername(updatedUser.getUsername());
-            user.setEmail(updatedUser.getEmail());
-            user.setRole(updatedUser.getRole());
-            return userRepository.save(user);
-        }).orElse(null);
+    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
+        return userRepository.findById(id)
+                .map(existingUser -> {
+                    existingUser.setUsername(updatedUser.getUsername());
+                    existingUser.setEmail(updatedUser.getEmail());
+                    existingUser.setRole(updatedUser.getRole());
+                    return ResponseEntity.ok(userRepository.save(existingUser));
+                })
+                .orElseGet(() -> {
+                    updatedUser.setId(id);
+                    return new ResponseEntity<>(userRepository.save(updatedUser), HttpStatus.CREATED);
+                });
     }
 
     // Delete user by ID
     @DeleteMapping("/{id}")
-    public String deleteUser(@PathVariable Long id) {
+    public ResponseEntity<String> deleteUser(@PathVariable Long id) {
         if (userRepository.existsById(id)) {
             userRepository.deleteById(id);
-            return "User deleted successfully.";
+            return ResponseEntity.ok("User deleted successfully.");
         } else {
-            return "User not found.";
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found.");
         }
     }
 }

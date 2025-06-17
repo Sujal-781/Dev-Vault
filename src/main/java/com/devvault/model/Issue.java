@@ -15,7 +15,13 @@ public class Issue {
 
     private String title;
     private String description;
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private String difficulty; // EASY, MEDIUM, HARD
+
+    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
     private String status;     // OPEN, CLAIMED, CLOSED
 
     @ManyToOne
