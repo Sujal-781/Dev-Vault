@@ -18,6 +18,17 @@ public class User {
     private String email;
     private String role;
 
+    @Column(nullable = false)
+    private int rewardPoints = 0;
+
+    public int getRewardPoints() {
+        return rewardPoints;
+    }
+
+    public void setRewardPoints(int rewardPoints) {
+        this.rewardPoints = rewardPoints;
+    }
+
     // Constructors
     public User() {
     }
