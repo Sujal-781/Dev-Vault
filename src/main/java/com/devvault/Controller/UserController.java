@@ -1,5 +1,6 @@
 package com.devvault.Controller;
 
+import com.devvault.exception.ResourceNotFoundException;
 import com.devvault.model.User;
 import com.devvault.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,9 +38,9 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
     public ResponseEntity<User> getUser(@PathVariable Long id) {
-        return userRepository.findById(id)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).body(null));
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
+        return ResponseEntity.ok(user);
     }
 
     // 🔐 Update user by ID (Upsert style) - ADMIN only
@@ -63,18 +64,18 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteUser(@PathVariable Long id) {
-        if (userRepository.existsById(id)) {
-            userRepository.deleteById(id);
-            return ResponseEntity.ok("User deleted successfully.");
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found.");
+        if (!userRepository.existsById(id)) {
+            throw new ResourceNotFoundException("User not found with ID: " + id);
         }
+        userRepository.deleteById(id);
+        return ResponseEntity.ok("User deleted successfully.");
     }
 
-    // 🔓 Get leaderboard - public (or you can restrict with @PreAuthorize if needed)
+    // 🔓 Get leaderboard - top 10 users by rewardPoints
     @GetMapping("/leaderboard")
-    public List<Object[]> getLeaderboard() {
-        return userRepository.getLeaderboard();
+    public ResponseEntity<List<User>> getLeaderboard() {
+        List<User> topUsers = userRepository.findTop10ByOrderByRewardPointsDesc();
+        return ResponseEntity.ok(topUsers);
     }
 
     // 🔐 Get current logged-in user's profile
@@ -82,8 +83,8 @@ public class UserController {
     @GetMapping("/me")
     public ResponseEntity<User> getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        return userRepository.findByEmail(email)
-                .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        return ResponseEntity.ok(user);
     }
 }
