@@ -9,7 +9,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import com.devvault.dto.UserDTO;
+import jakarta.validation.Valid;
+import com.devvault.dto.UserUpdateDTO;
+import com.devvault.dto.UserResponseDTO;
+import com.devvault.util.DtoConverter;
 
 import java.util.List;
 
@@ -21,58 +27,68 @@ public class UserController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private PasswordEncoder passwordEncoder;
+
     // 🔐 Create a new user - ADMIN only
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        log.info("Creating new user: {}", user.getEmail());
+    public ResponseEntity<User> createUser(@Valid @RequestBody UserDTO userDTO) {
+        User user = new User();
+        user.setUsername(userDTO.getUsername());
+        user.setEmail(userDTO.getEmail());
+        user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
+        user.setRole(userDTO.getRole());
+
         User savedUser = userRepository.save(user);
-        log.info("User created with ID: {}", savedUser.getId());
         return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
     }
 
     // 🔐 Get all users - ADMIN only
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
-        log.info("Fetching all users");
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         List<User> users = userRepository.findAll();
-        log.info("Found {} users", users.size());
-        return ResponseEntity.ok(users);
+        List<UserResponseDTO> response = users.stream()
+                .map(DtoConverter::toUserResponse)
+                .toList();
+        return ResponseEntity.ok(response);
     }
 
     // 🔐 Get user by ID - ADMIN only
-    @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUser(@PathVariable Long id) {
-        log.info("Fetching user with ID: {}", id);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponseDTO> getUser(@PathVariable Long id) {
         User user = userRepository.findById(id)
-                .orElseThrow(() -> {
-                    log.warn("User not found with ID: {}", id);
-                    return new ResourceNotFoundException("User not found with ID: " + id);
-                });
-        return ResponseEntity.ok(user);
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with ID: " + id));
+        return ResponseEntity.ok(DtoConverter.toUserResponse(user));
     }
 
     // 🔐 Update user by ID (Upsert style) - ADMIN only
-    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User updatedUser) {
-        log.info("Updating user with ID: {}", id);
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserResponseDTO> updateUser(
+            @PathVariable Long id,
+            @Valid @RequestBody UserUpdateDTO dto
+    ) {
         return userRepository.findById(id)
-                .map(existingUser -> {
-                    existingUser.setUsername(updatedUser.getUsername());
-                    existingUser.setEmail(updatedUser.getEmail());
-                    existingUser.setRole(updatedUser.getRole());
-                    User saved = userRepository.save(existingUser);
-                    log.info("User updated: ID {}", id);
-                    return ResponseEntity.ok(saved);
+                .map(user -> {
+                    user.setUsername(dto.getUsername());
+                    user.setEmail(dto.getEmail());
+                    user.setRole(dto.getRole());
+                    if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
+                        user.setPassword(passwordEncoder.encode(dto.getPassword()));
+                    }
+                    return ResponseEntity.ok(DtoConverter.toUserResponse(userRepository.save(user)));
                 })
                 .orElseGet(() -> {
-                    updatedUser.setId(id);
-                    User saved = userRepository.save(updatedUser);
-                    log.info("User not found, created new user with ID: {}", id);
-                    return new ResponseEntity<>(saved, HttpStatus.CREATED);
+                    User newUser = new User();
+                    newUser.setId(id);
+                    newUser.setUsername(dto.getUsername());
+                    newUser.setEmail(dto.getEmail());
+                    newUser.setRole(dto.getRole());
+                    newUser.setPassword(passwordEncoder.encode(dto.getPassword()));
+                    return new ResponseEntity<>(DtoConverter.toUserResponse(userRepository.save(newUser)), HttpStatus.CREATED);
                 });
     }
 
@@ -92,24 +108,21 @@ public class UserController {
 
     // 🔓 Get leaderboard - top 10 users by rewardPoints
     @GetMapping("/leaderboard")
-    public ResponseEntity<List<User>> getLeaderboard() {
-        log.info("Fetching top 10 users by reward points");
+    public ResponseEntity<List<UserResponseDTO>> getLeaderboard() {
         List<User> topUsers = userRepository.findTop10ByOrderByRewardPointsDesc();
-        log.info("Fetched {} users in leaderboard", topUsers.size());
-        return ResponseEntity.ok(topUsers);
+        List<UserResponseDTO> response = topUsers.stream()
+                .map(DtoConverter::toUserResponse)
+                .toList();
+        return ResponseEntity.ok(response);
     }
 
     // 🔐 Get current logged-in user's profile
-    @PreAuthorize("isAuthenticated()")
     @GetMapping("/me")
-    public ResponseEntity<User> getCurrentUser() {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<UserResponseDTO> getCurrentUser() {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        log.info("Fetching profile for logged-in user: {}", email);
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    log.warn("Logged-in user not found: {}", email);
-                    return new ResourceNotFoundException("User not found with email: " + email);
-                });
-        return ResponseEntity.ok(user);
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+        return ResponseEntity.ok(DtoConverter.toUserResponse(user));
     }
 }

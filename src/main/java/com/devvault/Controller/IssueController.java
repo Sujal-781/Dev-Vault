@@ -1,5 +1,6 @@
 package com.devvault.Controller;
 
+import com.devvault.dto.IssueDTO;
 import com.devvault.exception.ResourceNotFoundException;
 import com.devvault.model.Difficulty;
 import com.devvault.model.Issue;
@@ -7,6 +8,7 @@ import com.devvault.model.IssueStatus;
 import com.devvault.model.User;
 import com.devvault.repository.IssueRepository;
 import com.devvault.repository.UserRepository;
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -31,7 +33,7 @@ public class IssueController {
     // 🔐 Create new issue - auto assign to logged-in user (USER role)
     @PreAuthorize("hasRole('USER')")
     @PostMapping
-    public ResponseEntity<Issue> createIssue(@RequestBody Issue issue) {
+    public ResponseEntity<Issue> createIssue(@Valid @RequestBody IssueDTO dto) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         log.info("Creating issue for user with email: {}", email);
 
@@ -41,12 +43,18 @@ public class IssueController {
                     return new ResourceNotFoundException("User not found");
                 });
 
+        Issue issue = new Issue();
+        issue.setTitle(dto.getTitle());
+        issue.setDescription(dto.getDescription());
+        issue.setDifficulty(dto.getDifficulty());
+        issue.setStatus(IssueStatus.CLAIMED); // default on creation
         issue.setAssignedTo(user);
-        issue.setStatus(IssueStatus.CLAIMED);
+
         Issue savedIssue = issueRepository.save(issue);
         log.info("Issue created with ID: {}", savedIssue.getId());
         return ResponseEntity.ok(savedIssue);
     }
+
 
     // ✅ Filter + Pagination: GET /issues/filter?status=OPEN&difficulty=EASY&page=0&size=5
     @GetMapping("/filter")
@@ -110,7 +118,7 @@ public class IssueController {
     // 🔐 Update issue - only assigned user or ADMIN
     @PreAuthorize("hasRole('ADMIN') or @issueSecurity.isOwner(#id)")
     @PutMapping("/{id}")
-    public ResponseEntity<Issue> updateIssue(@PathVariable Long id, @RequestBody Issue updatedIssue) {
+    public ResponseEntity<Issue> updateIssue(@PathVariable Long id, @Valid @RequestBody IssueDTO dto) {
         log.info("Updating issue ID {}", id);
 
         Issue issue = issueRepository.findById(id)
@@ -119,12 +127,12 @@ public class IssueController {
                     return new ResourceNotFoundException("Issue not found");
                 });
 
-        issue.setTitle(updatedIssue.getTitle());
-        issue.setDescription(updatedIssue.getDescription());
-        issue.setDifficulty(updatedIssue.getDifficulty());
+        issue.setTitle(dto.getTitle());
+        issue.setDescription(dto.getDescription());
+        issue.setDifficulty(dto.getDifficulty());
 
         IssueStatus prevStatus = issue.getStatus();
-        IssueStatus newStatus = updatedIssue.getStatus();
+        IssueStatus newStatus = dto.getStatus();
 
         if (prevStatus != IssueStatus.CLOSED && newStatus == IssueStatus.CLOSED) {
             issue.setStatus(IssueStatus.CLOSED);
@@ -148,6 +156,7 @@ public class IssueController {
         log.info("Issue ID {} updated successfully", id);
         return ResponseEntity.ok(saved);
     }
+
 
     // 🔐 Delete issue - only assigned user or ADMIN
     @PreAuthorize("hasRole('ADMIN') or @issueSecurity.isOwner(#id)")

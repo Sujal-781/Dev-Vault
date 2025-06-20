@@ -1,8 +1,10 @@
 package com.devvault.Controller;
 
+import com.devvault.dto.UserLoginDTO;
 import com.devvault.model.User;
 import com.devvault.repository.UserRepository;
 import com.devvault.security.JwtUtil;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,9 +26,9 @@ public class AuthController {
     private JwtUtil jwtUtil;
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> loginData) {
-        String email = loginData.get("email");
-        String password = loginData.get("password");
+    public ResponseEntity<?> login(@Valid @RequestBody UserLoginDTO loginDto) {
+        String email = loginDto.getEmail();
+        String password = loginDto.getPassword();
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("Invalid email or password"));
