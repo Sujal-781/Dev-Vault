@@ -1,7 +1,6 @@
 package com.devvault.model;
 
 import jakarta.persistence.*;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -18,19 +17,15 @@ public class Issue {
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private String difficulty; // EASY, MEDIUM, HARD
+    private Difficulty difficulty;
 
     @Column(nullable = false)
     @Enumerated(EnumType.STRING)
-    private String status;     // OPEN, CLAIMED, CLOSED
+    private IssueStatus status;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")  // FK to User table
+    @JoinColumn(name = "user_id")
     private User assignedTo;
-
-    // Constructors
-    public Issue() {
-    }
 
     @Column(name = "reward_points")
     private Integer rewardPoints;
@@ -38,8 +33,16 @@ public class Issue {
     @Column(name = "due_date")
     private LocalDate dueDate;
 
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
-    public Issue(String title, String description, String difficulty, String status, User assignedTo) {
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    // Constructors
+    public Issue() {}
+
+    public Issue(String title, String description, Difficulty difficulty, IssueStatus status, User assignedTo) {
         this.title = title;
         this.description = description;
         this.difficulty = difficulty;
@@ -68,19 +71,19 @@ public class Issue {
         this.description = description;
     }
 
-    public String getDifficulty() {
+    public Difficulty getDifficulty() {
         return difficulty;
     }
 
-    public void setDifficulty(String difficulty) {
+    public void setDifficulty(Difficulty difficulty) {
         this.difficulty = difficulty;
     }
 
-    public String getStatus() {
+    public IssueStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(IssueStatus status) {
         this.status = status;
     }
 
@@ -92,12 +95,29 @@ public class Issue {
         this.assignedTo = assignedTo;
     }
 
+    public Integer getRewardPoints() {
+        return rewardPoints;
+    }
 
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    public void setRewardPoints(Integer rewardPoints) {
+        this.rewardPoints = rewardPoints;
+    }
 
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
+    public LocalDate getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(LocalDate dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
 
     @PrePersist
     protected void onCreate() {
@@ -108,5 +128,4 @@ public class Issue {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
-
 }

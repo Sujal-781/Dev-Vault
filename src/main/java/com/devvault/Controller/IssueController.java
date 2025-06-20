@@ -1,10 +1,13 @@
 package com.devvault.Controller;
 
 import com.devvault.exception.ResourceNotFoundException;
+import com.devvault.model.Difficulty;
 import com.devvault.model.Issue;
+import com.devvault.model.IssueStatus;
 import com.devvault.model.User;
 import com.devvault.repository.IssueRepository;
 import com.devvault.repository.UserRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -16,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/issues")
+@Slf4j
 public class IssueController {
 
     @Autowired
@@ -29,12 +33,18 @@ public class IssueController {
     @PostMapping
     public ResponseEntity<Issue> createIssue(@RequestBody Issue issue) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        log.info("Creating issue for user with email: {}", email);
+
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> {
+                    log.warn("User not found with email: {}", email);
+                    return new ResourceNotFoundException("User not found");
+                });
 
         issue.setAssignedTo(user);
-        issue.setStatus("CLAIMED");
+        issue.setStatus(IssueStatus.CLAIMED);
         Issue savedIssue = issueRepository.save(issue);
+        log.info("Issue created with ID: {}", savedIssue.getId());
         return ResponseEntity.ok(savedIssue);
     }
 
@@ -47,6 +57,7 @@ public class IssueController {
             @RequestParam(defaultValue = "10") int size) {
 
         Pageable pageable = PageRequest.of(page, size);
+        log.info("Filtering issues: status={}, difficulty={}, page={}, size={}", status, difficulty, page, size);
 
         if (status != null && difficulty != null) {
             return ResponseEntity.ok(issueRepository.findByStatusIgnoreCaseAndDifficultyIgnoreCase(status, difficulty, pageable));
@@ -62,8 +73,12 @@ public class IssueController {
     // 🔓 Get issue by ID - public
     @GetMapping("/{id}")
     public ResponseEntity<Issue> getIssueById(@PathVariable Long id) {
+        log.info("Fetching issue with ID: {}", id);
         Issue issue = issueRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Issue not found with ID: " + id));
+                .orElseThrow(() -> {
+                    log.warn("Issue not found with ID: {}", id);
+                    return new ResourceNotFoundException("Issue not found with ID: " + id);
+                });
         return ResponseEntity.ok(issue);
     }
 
@@ -71,59 +86,80 @@ public class IssueController {
     @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/{issueId}/assign/{userId}")
     public ResponseEntity<Issue> assignIssueToUser(@PathVariable Long issueId, @PathVariable Long userId) {
+        log.info("Assigning issue ID {} to user ID {}", issueId, userId);
+
         Issue issue = issueRepository.findById(issueId)
-                .orElseThrow(() -> new ResourceNotFoundException("Issue not found"));
+                .orElseThrow(() -> {
+                    log.warn("Issue not found with ID: {}", issueId);
+                    return new ResourceNotFoundException("Issue not found");
+                });
+
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> {
+                    log.warn("User not found with ID: {}", userId);
+                    return new ResourceNotFoundException("User not found");
+                });
 
         issue.setAssignedTo(user);
-        issue.setStatus("CLAIMED");
-        return ResponseEntity.ok(issueRepository.save(issue));
+        issue.setStatus(IssueStatus.CLAIMED);
+        Issue updated = issueRepository.save(issue);
+        log.info("Issue ID {} assigned to user ID {}", issueId, userId);
+        return ResponseEntity.ok(updated);
     }
 
     // 🔐 Update issue - only assigned user or ADMIN
     @PreAuthorize("hasRole('ADMIN') or @issueSecurity.isOwner(#id)")
     @PutMapping("/{id}")
     public ResponseEntity<Issue> updateIssue(@PathVariable Long id, @RequestBody Issue updatedIssue) {
+        log.info("Updating issue ID {}", id);
+
         Issue issue = issueRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Issue not found"));
+                .orElseThrow(() -> {
+                    log.warn("Issue not found with ID: {}", id);
+                    return new ResourceNotFoundException("Issue not found");
+                });
 
         issue.setTitle(updatedIssue.getTitle());
         issue.setDescription(updatedIssue.getDescription());
         issue.setDifficulty(updatedIssue.getDifficulty());
 
-        String prevStatus = issue.getStatus();
-        String newStatus = updatedIssue.getStatus();
+        IssueStatus prevStatus = issue.getStatus();
+        IssueStatus newStatus = updatedIssue.getStatus();
 
-        if (!"CLOSED".equalsIgnoreCase(prevStatus) && "CLOSED".equalsIgnoreCase(newStatus)) {
-            issue.setStatus("CLOSED");
+        if (prevStatus != IssueStatus.CLOSED && newStatus == IssueStatus.CLOSED) {
+            issue.setStatus(IssueStatus.CLOSED);
 
             User assignee = issue.getAssignedTo();
             if (assignee != null) {
-                int reward = switch (issue.getDifficulty().toUpperCase()) {
-                    case "EASY" -> 10;
-                    case "MEDIUM" -> 20;
-                    case "HARD" -> 30;
-                    default -> 5;
+                int reward = switch (issue.getDifficulty()) {
+                    case EASY -> 10;
+                    case MEDIUM -> 20;
+                    case HARD -> 30;
                 };
                 assignee.setRewardPoints(assignee.getRewardPoints() + reward);
                 userRepository.save(assignee);
+                log.info("Issue closed. Reward {} points to user {}", reward, assignee.getId());
             }
         } else {
             issue.setStatus(newStatus);
         }
 
-        return ResponseEntity.ok(issueRepository.save(issue));
+        Issue saved = issueRepository.save(issue);
+        log.info("Issue ID {} updated successfully", id);
+        return ResponseEntity.ok(saved);
     }
 
     // 🔐 Delete issue - only assigned user or ADMIN
     @PreAuthorize("hasRole('ADMIN') or @issueSecurity.isOwner(#id)")
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deleteIssue(@PathVariable Long id) {
+        log.info("Deleting issue ID: {}", id);
         if (!issueRepository.existsById(id)) {
+            log.warn("Issue not found with ID: {}", id);
             throw new ResourceNotFoundException("Issue not found with ID: " + id);
         }
         issueRepository.deleteById(id);
+        log.info("Issue ID {} deleted", id);
         return ResponseEntity.ok("Issue deleted successfully.");
     }
 }
