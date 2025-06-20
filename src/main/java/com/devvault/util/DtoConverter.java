@@ -10,7 +10,7 @@ public class DtoConverter {
         dto.setId(user.getId());
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
-        dto.setRole(user.getRole());
+        dto.setRole(user.getRole().name());
         dto.setRewardPoints(user.getRewardPoints());
         return dto;
     }

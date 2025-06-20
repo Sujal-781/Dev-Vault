@@ -1,4 +1,4 @@
-package com.devvault.Controller;
+package com.devvault.controller;
 
 import com.devvault.dto.UserLoginDTO;
 import com.devvault.model.User;
@@ -37,7 +37,8 @@ public class AuthController {
             return ResponseEntity.status(401).body("Invalid email or password");
         }
 
-        String token = jwtUtil.generateToken(email, user.getRole());
+        String token = jwtUtil.generateToken(email, user.getRole().name());
+
         return ResponseEntity.ok(Map.of("token", token));
     }
 }

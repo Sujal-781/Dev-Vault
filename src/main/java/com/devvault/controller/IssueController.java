@@ -1,8 +1,7 @@
-package com.devvault.Controller;
+package com.devvault.controller;
 
 import com.devvault.dto.IssueDTO;
 import com.devvault.exception.ResourceNotFoundException;
-import com.devvault.model.Difficulty;
 import com.devvault.model.Issue;
 import com.devvault.model.IssueStatus;
 import com.devvault.model.User;
@@ -31,7 +30,7 @@ public class IssueController {
     private UserRepository userRepository;
 
     // 🔐 Create new issue - auto assign to logged-in user (USER role)
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @PostMapping
     public ResponseEntity<Issue> createIssue(@Valid @RequestBody IssueDTO dto) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();

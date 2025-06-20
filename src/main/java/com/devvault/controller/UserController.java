@@ -1,6 +1,7 @@
-package com.devvault.Controller;
+package com.devvault.controller;
 
 import com.devvault.exception.ResourceNotFoundException;
+import com.devvault.model.Role;
 import com.devvault.model.User;
 import com.devvault.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -38,7 +39,8 @@ public class UserController {
         user.setUsername(userDTO.getUsername());
         user.setEmail(userDTO.getEmail());
         user.setPassword(passwordEncoder.encode(userDTO.getPassword()));
-        user.setRole(userDTO.getRole());
+        user.setRole(Role.valueOf(userDTO.getRole()));
+
 
         User savedUser = userRepository.save(user);
         return new ResponseEntity<>(savedUser, HttpStatus.CREATED);
@@ -75,7 +77,8 @@ public class UserController {
                 .map(user -> {
                     user.setUsername(dto.getUsername());
                     user.setEmail(dto.getEmail());
-                    user.setRole(dto.getRole());
+                    user.setRole(Role.valueOf(dto.getRole().toUpperCase()));
+
                     if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
                         user.setPassword(passwordEncoder.encode(dto.getPassword()));
                     }
@@ -86,7 +89,7 @@ public class UserController {
                     newUser.setId(id);
                     newUser.setUsername(dto.getUsername());
                     newUser.setEmail(dto.getEmail());
-                    newUser.setRole(dto.getRole());
+                    newUser.setRole(Role.valueOf(dto.getRole().toUpperCase()));
                     newUser.setPassword(passwordEncoder.encode(dto.getPassword()));
                     return new ResponseEntity<>(DtoConverter.toUserResponse(userRepository.save(newUser)), HttpStatus.CREATED);
                 });
@@ -125,4 +128,11 @@ public class UserController {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
         return ResponseEntity.ok(DtoConverter.toUserResponse(user));
     }
+
+
+    @GetMapping("/ping")
+    public ResponseEntity<String> ping() {
+        return ResponseEntity.ok("pong");
+    }
+
 }

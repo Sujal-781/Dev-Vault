@@ -1,11 +1,16 @@
 package com.devvault.model;
 
 import jakarta.persistence.*;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "users")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
 
     @Id
@@ -14,85 +19,19 @@ public class User {
 
     @Column(unique = true, nullable = false)
     private String username;
+
     @Column(unique = true, nullable = false)
     private String email;
-    private String role;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role;
 
     @Column(nullable = false)
     private int rewardPoints = 0;
 
     @Column(nullable = false)
     private String password;
-
-    // Add getter
-    public String getPassword() {
-        return password;
-    }
-
-    // Add setter
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-
-    public int getRewardPoints() {
-        return rewardPoints;
-    }
-
-    public void setRewardPoints(int rewardPoints) {
-        this.rewardPoints = rewardPoints;
-    }
-
-    // Constructors
-    public User() {
-    }
-
-    public User(String username, String email, String role) {
-        this.username = username;
-        this.email = email;
-        this.role = role;
-    }
-
-    public User(Long id, String username, String email, String role) {
-        this.id = id;
-        this.username = username;
-        this.email = email;
-        this.role = role;
-    }
-
-    // Getters
-    public Long getId() {
-        return id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public String getRole() {
-        return role;
-    }
-
-    // Setters
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public void setRole(String role) {
-        this.role = role;
-    }
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -102,23 +41,11 @@ public class User {
 
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
+        this.createdAt = LocalDateTime.now();
     }
 
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
-
-
-    // toString (optional, useful for logging/debugging)
-    @Override
-    public String toString() {
-        return "User{" +
-                "id=" + id +
-                ", username='" + username + '\'' +
-                ", email='" + email + '\'' +
-                ", role='" + role + '\'' +
-                '}';
+        this.updatedAt = LocalDateTime.now();
     }
 }

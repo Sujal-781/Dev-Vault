@@ -6,10 +6,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-public class OpenApiConfig {
+public class OpenAPIConfig {
+
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
-                .info(new Info().title("DevVault API").version("1.0").description("API Docs for DevVault"));
+                .info(new Info()
+                        .title("DevVault API")
+                        .version("1.0.0")
+                        .description("Swagger documentation for DevVault backend")
+                );
     }
 }
