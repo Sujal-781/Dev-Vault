@@ -21,6 +21,20 @@ public class User {
     @Column(nullable = false)
     private int rewardPoints = 0;
 
+    @Column(nullable = false)
+    private String password;
+
+    // Add getter
+    public String getPassword() {
+        return password;
+    }
+
+    // Add setter
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+
     public int getRewardPoints() {
         return rewardPoints;
     }
